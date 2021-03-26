@@ -1,8 +1,11 @@
 package tests;
 
 import io.github.rctcwyvrn.blake3.Blake3;
+import io.github.rctcwyvrn.blake3.Blake3Factory;
+import io.github.rctcwyvrn.blake3.internal.DefaultBlake3Factory;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
@@ -15,7 +18,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class Blake3Tests {
     private static final byte[] testBytes = "This is a string".getBytes(StandardCharsets.UTF_8);
@@ -35,16 +40,28 @@ public class Blake3Tests {
         }
     }
 
+    private Blake3Factory factory;
+
+    @Before
+    public void createFactory() {
+        try {
+            factory = (Blake3Factory) Class.forName("io.github.rctcwyvrn.blake3.internal.VectorizedBlake3Factory").getDeclaredConstructor().newInstance();
+            System.out.println("Using Vectorized Blake3");
+        } catch (Exception ex) {
+            factory = new DefaultBlake3Factory();
+        }
+    }
+
     @Test
     public void basicHash(){
-        Blake3 hasher = Blake3.newInstance();
+        Blake3 hasher = factory.newInstance();
         hasher.update(testBytes);
         assertEquals("718b749f12a61257438b2ea6643555fd995001c9d9ff84764f93f82610a780f2", hasher.hexdigest());
     }
 
     @Test
     public void testLongerHash(){
-        Blake3 hasher = Blake3.newInstance();
+        Blake3 hasher = factory.newInstance();
         hasher.update(testBytes);
         assertEquals( "718b749f12a61257438b2ea6643555fd995001c9d9ff84764f93f82610a780f243a9903464658159cf8b216e79006e12ef3568851423fa7c97002cbb9ca4dc44b4185bb3c6d18cdd1a991c2416f5e929810290b24bf24ba6262012684b6a0c4e096f55e8b0b4353c7b04a1141d25afd71fffae1304a5abf0c44150df8b8d4017",
                 hasher.hexdigest(128));
@@ -52,14 +69,14 @@ public class Blake3Tests {
 
     @Test
     public void testShorterHash(){
-        Blake3 hasher = Blake3.newInstance();
+        Blake3 hasher = factory.newInstance();
         hasher.update(testBytes);
         assertEquals("718b749f12a61257438b2ea6643555fd",hasher.hexdigest(16));
     }
 
     @Test
     public void testRawByteHash(){
-        Blake3 hasher = Blake3.newInstance();
+        Blake3 hasher = factory.newInstance();
         hasher.update(testBytes);
         byte[] digest = hasher.digest();
         assertTrue(Arrays.equals(digest, new byte[]{
@@ -71,7 +88,7 @@ public class Blake3Tests {
     @Test
     public void testFileHash(){
         try {
-            Blake3 hasher = Blake3.newInstance();
+            Blake3 hasher = factory.newInstance();
             hasher.update(new File("LICENSE"));
             assertEquals("381f3baeddb0ce5202ac9528ecc787c249901e74528ba2cbc5546567a2e0bd33", hasher.hexdigest());
         } catch (Exception e){
@@ -83,7 +100,7 @@ public class Blake3Tests {
     @Test
     public void testKeyedFileHash(){
         try {
-            Blake3 hasher = Blake3.newKeyedHasher(testKeyedHashBytes);
+            Blake3 hasher = factory.newKeyedHasher(testKeyedHashBytes);
             hasher.update(new File("LICENSE"));
             assertEquals("e0d0ef068716e24b845abd9e7aba97d28d9c1551559cb53899ce50a2dab982cd", hasher.hexdigest());
         } catch (Exception e){
@@ -94,7 +111,7 @@ public class Blake3Tests {
 
     @Test
     public void testKDFHash(){
-        Blake3 hasher = Blake3.newKeyDerivationHasher("meowmeowverysecuremeowmeow");
+        Blake3 hasher = factory.newKeyDerivationHasher("meowmeowverysecuremeowmeow");
         hasher.update(testBytes);
         assertEquals("348de7e5f8f804216998120d1d05c6d233d250bdf40220dbf02395c1f89a73f7", hasher.hexdigest());
     }
@@ -136,9 +153,9 @@ public class Blake3Tests {
                 JSONObject testCase = (JSONObject) cases.get(i);
                 int inputLen = testCase.getInt("input_len");
                 byte[] inputData = getTestVectorInput(inputLen);
-                Blake3 blake3 = Blake3.newInstance();
-                Blake3 keyed = Blake3.newKeyedHasher(key.getBytes(StandardCharsets.US_ASCII));
-                Blake3 kdf = Blake3.newKeyDerivationHasher(contextString);
+                Blake3 blake3 = factory.newInstance();
+                Blake3 keyed = factory.newKeyedHasher(key.getBytes(StandardCharsets.US_ASCII));
+                Blake3 kdf = factory.newKeyDerivationHasher(contextString);
 
                 blake3.update(inputData);
                 keyed.update(inputData);
